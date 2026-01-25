@@ -16,13 +16,13 @@ func main() {
 
 	waitingJob := job.WaitingJob{WaitTime: time.Second, WorkTime: 5 * time.Second}
 	monitoringJob := job.MonitoringJob{
-		WorkTime:     1 * time.Second,
+		WorkTime:     time.Hour,
 		WorkInterval: time.Second,
 	}
 
 	jobs := []job.Job{&waitingJob, &monitoringJob}
 
-	basic := worker.BasicWorker{MaxWorkTime: 10 * time.Second}
+	basic := worker.BasicWorker{MaxWorkTime: 24 * time.Hour}
 	if err := basic.SetJobs(jobs); err != nil {
 		fmt.Println(err)
 	}
