@@ -3,27 +3,59 @@ package server
 import (
 	"context"
 	"fmt"
+	"log"
+	"net"
 	"net/http"
+	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-func setAndGetMux() *http.ServeMux {
-	// Если не ставить * перед http.ServeMux, то оно скопирует его?
-	//TODO: Разобраться, куда тут пихать контекст. Расширять r.Context() ?
+func setAndGetMux(reg *prometheus.Registry) *http.ServeMux {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
-
-	})
+	mux.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{Registry: reg}))
 
 	return mux
 }
 
-func Serve(ctx context.Context, port uint8) error {
-	mux := setAndGetMux()
+func Serve(ctx context.Context, port uint16, reg *prometheus.Registry) error {
 
-	if err := http.ListenAndServe(fmt.Sprintf("localhost:%v", port), mux); err != nil {
-		return err
+	mux := setAndGetMux(reg)
+	addr := fmt.Sprintf("localhost:%d", port)
+	srv := &http.Server{
+		Addr:    addr,
+		Handler: mux,
+		BaseContext: func(l net.Listener) context.Context {
+			return ctx
+		},
 	}
 
-	return nil
+	errCh := make(chan error, 1)
+
+	go func() {
+		log.Printf("http: starting server on %s", addr)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			errCh <- err
+		}
+		close(errCh)
+	}()
+
+	select {
+	case <-ctx.Done():
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		log.Printf("http: shutting down server (graceful)...")
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			_ = srv.Close()
+			return fmt.Errorf("server shutdown failed: %w", err)
+		}
+		return nil
+	case err := <-errCh:
+		if err != nil {
+			return err
+		}
+		return nil
+	}
 }

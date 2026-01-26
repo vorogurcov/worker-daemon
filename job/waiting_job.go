@@ -16,6 +16,10 @@ func (wj *WaitingJob) Do(ctx context.Context) error {
 	jobCtx, cancel := context.WithTimeout(ctx, wj.WorkTime)
 	defer cancel()
 
+	if v, ok := ctx.(Job); ok && v != nil {
+
+	}
+
 	ticker := time.NewTicker(wj.WaitTime)
 	defer ticker.Stop()
 
