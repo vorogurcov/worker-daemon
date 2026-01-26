@@ -17,15 +17,15 @@ func NewMetrics(reg prometheus.Registerer) *Metrics {
 			Help: "Current usage of the CPU.",
 		}),
 		MemUsagePercent: prometheus.NewGauge(prometheus.GaugeOpts{
-			Name: "win_mem_usage_bytes",
+			Name: "win_mem_usage_percent",
 			Help: "Current usage of the Memory.",
 		}),
 		DiskCUsagePercent: prometheus.NewGauge(prometheus.GaugeOpts{
-			Name: "win_disk_c_free_bytes",
+			Name: "win_disk_c_usage_percent",
 			Help: "Current usage of the Disk C:.",
 		}),
 		DiskDUsagePercent: prometheus.NewGauge(prometheus.GaugeOpts{
-			Name: "win_disk_d_free_bytes",
+			Name: "win_disk_d_usage_percent",
 			Help: "Current usage of the Disk D:.",
 		}),
 		NetCounter: prometheus.NewGauge(prometheus.GaugeOpts{
