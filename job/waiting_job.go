@@ -7,8 +7,8 @@ import (
 )
 
 type WaitingJob struct {
-	WaitTime time.Duration
-	WorkTime time.Duration
+	WorkInterval time.Duration
+	WorkTime     time.Duration
 }
 
 func (wj *WaitingJob) Do(ctx context.Context) error {
@@ -20,7 +20,7 @@ func (wj *WaitingJob) Do(ctx context.Context) error {
 
 	}
 
-	ticker := time.NewTicker(wj.WaitTime)
+	ticker := time.NewTicker(wj.WorkInterval)
 	defer ticker.Stop()
 
 	startTime := time.Now()

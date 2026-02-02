@@ -4,25 +4,18 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"main/job/metrics"
+	"main/worker"
 	"net"
 	"net/http"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-func setAndGetMux(reg *prometheus.Registry) *http.ServeMux {
-	mux := http.NewServeMux()
+func Serve(ctx context.Context, port uint16, reg *prometheus.Registry, metrics *metrics.Metrics, worker *worker.BasicWorker) error {
 
-	mux.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{Registry: reg}))
-
-	return mux
-}
-
-func Serve(ctx context.Context, port uint16, reg *prometheus.Registry) error {
-
-	mux := setAndGetMux(reg)
+	mux := SetAndGetMux(reg, metrics, worker)
 	addr := fmt.Sprintf("localhost:%d", port)
 	srv := &http.Server{
 		Addr:    addr,

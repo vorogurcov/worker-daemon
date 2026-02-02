@@ -1,11 +1,10 @@
-package monotoring
+package monitoring
 
 import (
 	"context"
 	"fmt"
 	"main/job"
 	metrics2 "main/job/metrics"
-	"time"
 
 	cpu2 "github.com/shirou/gopsutil/cpu"
 )
@@ -21,10 +20,7 @@ func (r CPUResult) String() string {
 
 func NewCPUCallback(metrics *metrics2.Metrics) job.MonitoringCallback {
 	return func(ctx context.Context) (job.MonitoringResult, error) {
-		cctx, cancel := context.WithTimeout(ctx, 2*time.Second)
-		defer cancel()
-
-		percentSlice, err := cpu2.PercentWithContext(cctx, 0, false)
+		percentSlice, err := cpu2.PercentWithContext(ctx, 0, false)
 		if err != nil {
 			return nil, err
 		}

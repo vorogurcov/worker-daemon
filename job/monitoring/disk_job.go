@@ -1,11 +1,10 @@
-package monotoring
+package monitoring
 
 import (
 	"context"
 	"fmt"
 	"main/job"
 	metrics2 "main/job/metrics"
-	"time"
 
 	"github.com/shirou/gopsutil/disk"
 )
@@ -22,10 +21,7 @@ func (r DiskResult) String() string {
 
 func NewDiskCallback(path string, metrics *metrics2.Metrics) job.MonitoringCallback {
 	return func(ctx context.Context) (job.MonitoringResult, error) {
-		cctx, cancel := context.WithTimeout(ctx, 2*time.Second)
-		defer cancel()
-
-		u, err := disk.UsageWithContext(cctx, path)
+		u, err := disk.UsageWithContext(ctx, path)
 		if err != nil {
 			return nil, err
 		}

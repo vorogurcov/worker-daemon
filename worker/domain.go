@@ -3,9 +3,12 @@ package worker
 import (
 	"context"
 	"main/job"
+	"time"
 )
 
 type Worker interface {
+	NewWorker(maxTime time.Duration) *Worker
 	ExecuteJobs(ctx context.Context) <-chan error
-	SetJobs(ctx context.Context, jobs []job.Job)
+	AppendToJobs(job job.Job)
+	Stop()
 }

@@ -1,11 +1,10 @@
-package monotoring
+package monitoring
 
 import (
 	"context"
 	"fmt"
 	"main/job"
 	metrics2 "main/job/metrics"
-	"time"
 
 	"github.com/shirou/gopsutil/net"
 )
@@ -23,10 +22,7 @@ func (r NetResult) String() string {
 
 func NewNetCallback(metrics *metrics2.Metrics) job.MonitoringCallback {
 	return func(ctx context.Context) (job.MonitoringResult, error) {
-		cctx, cancel := context.WithTimeout(ctx, 2*time.Second)
-		defer cancel()
-
-		counters, err := net.IOCountersWithContext(cctx, false)
+		counters, err := net.IOCountersWithContext(ctx, false)
 		if err != nil {
 			return nil, err
 		}

@@ -2,52 +2,60 @@ package worker
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"main/job"
 	"sync"
 	"time"
 )
 
 type BasicWorker struct {
-	workerJobs  []job.Job
+	workerJobs  chan job.Job
 	MaxWorkTime time.Duration
+	QueueSize   int
+	wg          sync.WaitGroup
+}
+
+func NewWorker(maxTime time.Duration, queueSize int) *BasicWorker {
+	return &BasicWorker{
+		workerJobs:  make(chan job.Job, queueSize),
+		QueueSize:   queueSize,
+		MaxWorkTime: maxTime,
+	}
 }
 
 func (bw *BasicWorker) ExecuteJobs(ctx context.Context) <-chan error {
-	workerCtx, cancel := context.WithTimeout(ctx, bw.MaxWorkTime)
+	chErr := make(chan error, bw.QueueSize)
 
-	chErr := make(chan error, len(bw.workerJobs))
-
-	if bw.workerJobs == nil {
-		chErr <- errors.New("workerJobs are not set, call SetJobs to set it")
-		return chErr
-	}
-
-	var wg sync.WaitGroup
-
-	wg.Add(len(bw.workerJobs))
-
-	for _, workerJob := range bw.workerJobs {
-
-		go func(j job.Job) {
-			defer wg.Done()
-			if err := j.Do(workerCtx); err != nil {
-				chErr <- fmt.Errorf("error in workerJob: %v", err)
-			}
-			chErr <- nil
-		}(workerJob)
-	}
 	go func() {
-		wg.Wait()
-		cancel()
+		workerCtx, cancel := context.WithTimeout(ctx, bw.MaxWorkTime)
+		defer cancel()
+
+		go func() {
+			<-workerCtx.Done()
+			bw.Stop()
+		}()
+
+		for j := range bw.workerJobs {
+			bw.wg.Add(1)
+			go func(jobToRun job.Job) {
+				defer bw.wg.Done()
+
+				if err := jobToRun.Do(workerCtx); err != nil {
+					chErr <- err
+				}
+			}(j)
+		}
+
+		bw.wg.Wait()
 		close(chErr)
 	}()
 
 	return chErr
 }
 
-func (bw *BasicWorker) SetJobs(jobs []job.Job) error {
-	bw.workerJobs = jobs
-	return nil
+func (bw *BasicWorker) AppendToJobs(job job.Job) {
+	bw.workerJobs <- job
+}
+
+func (bw *BasicWorker) Stop() {
+	close(bw.workerJobs)
 }
