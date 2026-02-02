@@ -13,7 +13,17 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-func Serve(ctx context.Context, port uint16, reg *prometheus.Registry, metrics *metrics.Metrics, worker *worker.BasicWorker) error {
+func Serve(ctx context.Context, maxWorkTime time.Duration, port uint16, reg *prometheus.Registry, metrics *metrics.Metrics, worker *worker.BasicWorker) error {
+	var srvCtx context.Context
+	var cancel context.CancelFunc
+
+	if maxWorkTime > 0 {
+		srvCtx, cancel = context.WithTimeout(ctx, maxWorkTime)
+	} else {
+		srvCtx, cancel = context.WithCancel(ctx)
+	}
+
+	defer cancel()
 
 	mux := SetAndGetMux(reg, metrics, worker)
 	addr := fmt.Sprintf("localhost:%d", port)
@@ -21,7 +31,7 @@ func Serve(ctx context.Context, port uint16, reg *prometheus.Registry, metrics *
 		Addr:    addr,
 		Handler: mux,
 		BaseContext: func(l net.Listener) context.Context {
-			return ctx
+			return srvCtx
 		},
 	}
 
@@ -36,7 +46,7 @@ func Serve(ctx context.Context, port uint16, reg *prometheus.Registry, metrics *
 	}()
 
 	select {
-	case <-ctx.Done():
+	case <-srvCtx.Done():
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		log.Printf("http: shutting down server (graceful)...")

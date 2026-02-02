@@ -6,7 +6,6 @@ import (
 	"main/job/metrics"
 	"main/job/monitoring"
 	"main/worker"
-	"time"
 )
 
 func CreateJob(metrics *metrics.Metrics, w *worker.BasicWorker, createJobDto CreateJobDto) error {
@@ -17,8 +16,8 @@ func CreateJob(metrics *metrics.Metrics, w *worker.BasicWorker, createJobDto Cre
 	} else if createJobDto.Type == "MonitoringCPUJob" {
 		j = &job.MonitoringJob{
 			Name:         "monitoringCPUJob",
-			WorkTime:     10 * time.Second,
-			WorkInterval: 500 * time.Millisecond,
+			WorkTime:     createJobDto.WorkTime,
+			WorkInterval: createJobDto.WorkInterval,
 			Callback:     monitoring.NewCPUCallback(metrics),
 		}
 	} else {

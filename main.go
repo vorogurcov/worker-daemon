@@ -22,6 +22,8 @@ func main() {
 	reg := prometheus.NewRegistry()
 	metrics := metrics2.NewMetrics(reg)
 
+	maxWorkTime := time.Duration(0)
+
 	waitingJob := job.WaitingJob{WorkInterval: time.Second, WorkTime: 5 * time.Second}
 	monitoringDiskCJob := job.MonitoringJob{
 		Name:         "monitoringDiskCJob",
@@ -57,10 +59,10 @@ func main() {
 	jobs := []job.Job{&waitingJob, &monitoringDiskCJob, &monitoringDiskDJob,
 		&monitoringCPUJob, &monitoringMemJob, &monitoringNetJob}
 
-	basic := worker.NewWorker(1*time.Hour, 100)
+	basic := worker.NewWorker(maxWorkTime, 100)
 
 	go func() {
-		err := server.Serve(progCtx, 8080, reg, metrics, basic)
+		err := server.Serve(progCtx, maxWorkTime, 8080, reg, metrics, basic)
 		if err != nil {
 			fmt.Println(err)
 
@@ -83,11 +85,11 @@ func main() {
 		select {
 		case res, ok := <-resCh:
 			if !ok {
-				fmt.Print("finished all jobs!")
+				fmt.Print("finished all jobs!\n")
 				return
 			}
 			if res.Error != nil {
-				fmt.Println(res.Error)
+				fmt.Print(res.Error)
 			}
 			if res.Value != nil {
 				fmt.Print(res.Value)

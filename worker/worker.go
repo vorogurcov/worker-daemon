@@ -26,10 +26,18 @@ func (bw *BasicWorker) ExecuteJobs(ctx context.Context) <-chan job.Result {
 	resCh := make(chan job.Result, 10*bw.QueueSize)
 
 	go func() {
-		workerCtx, cancel := context.WithTimeout(ctx, bw.MaxWorkTime)
+		var workerCtx context.Context
+		var cancel context.CancelFunc
+		
+		if bw.MaxWorkTime > 0 {
+			workerCtx, cancel = context.WithTimeout(ctx, bw.MaxWorkTime)
+		} else {
+			workerCtx, cancel = context.WithCancel(ctx)
+		}
+
 		defer cancel()
 		defer close(resCh)
-		
+
 		go func() {
 			<-workerCtx.Done()
 			bw.Stop()
@@ -42,7 +50,6 @@ func (bw *BasicWorker) ExecuteJobs(ctx context.Context) <-chan job.Result {
 				for res := range jobToRun.Do(workerCtx) {
 					resCh <- res
 				}
-
 			}(j)
 		}
 
