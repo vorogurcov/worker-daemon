@@ -22,13 +22,14 @@ func NewWorker(maxTime time.Duration, queueSize int) *BasicWorker {
 	}
 }
 
-func (bw *BasicWorker) ExecuteJobs(ctx context.Context) <-chan error {
-	chErr := make(chan error, bw.QueueSize)
+func (bw *BasicWorker) ExecuteJobs(ctx context.Context) <-chan job.Result {
+	resCh := make(chan job.Result, 10*bw.QueueSize)
 
 	go func() {
 		workerCtx, cancel := context.WithTimeout(ctx, bw.MaxWorkTime)
 		defer cancel()
-
+		defer close(resCh)
+		
 		go func() {
 			<-workerCtx.Done()
 			bw.Stop()
@@ -38,18 +39,18 @@ func (bw *BasicWorker) ExecuteJobs(ctx context.Context) <-chan error {
 			bw.wg.Add(1)
 			go func(jobToRun job.Job) {
 				defer bw.wg.Done()
-
-				if err := jobToRun.Do(workerCtx); err != nil {
-					chErr <- err
+				for res := range jobToRun.Do(workerCtx) {
+					resCh <- res
 				}
+
 			}(j)
 		}
 
 		bw.wg.Wait()
-		close(chErr)
+
 	}()
 
-	return chErr
+	return resCh
 }
 
 func (bw *BasicWorker) AppendToJobs(job job.Job) {

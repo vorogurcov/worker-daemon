@@ -2,8 +2,13 @@ package job
 
 import "context"
 
+type Result struct {
+	Value any
+	Error error
+}
+
 type Job interface {
-	Do(ctx context.Context) error
+	Do(ctx context.Context) <-chan Result
 }
 
 type MonitoringResult interface {

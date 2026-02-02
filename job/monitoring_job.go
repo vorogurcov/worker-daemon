@@ -13,35 +13,57 @@ type MonitoringJob struct {
 	Callback     MonitoringCallback
 }
 
-func (mj *MonitoringJob) Do(ctx context.Context) error {
-	mjCtx, cancel := context.WithTimeout(ctx, mj.WorkTime)
-	defer cancel()
+func (mj *MonitoringJob) Do(ctx context.Context) <-chan Result {
+	resCh := make(chan Result)
 
-	ticker := time.NewTicker(mj.WorkInterval)
-	defer ticker.Stop()
+	go func() {
+		defer close(resCh)
 
-	for {
-		select {
-		case <-mjCtx.Done():
-			// WithCancelCause
-			if ctx.Err() == context.DeadlineExceeded {
-				fmt.Println("Stopped by Worker (MaxWorkTime exceeded)")
-				return nil
-			}
+		mjCtx, cancel := context.WithTimeout(ctx, mj.WorkTime)
+		defer cancel()
 
-			if mjCtx.Err() == context.DeadlineExceeded {
-				fmt.Printf("Finish monitoring job \"%v\"...\n", mj.Name)
-				return nil
-			}
+		ticker := time.NewTicker(mj.WorkInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-mjCtx.Done():
+				// WithCancelCause
+				if ctx.Err() == context.DeadlineExceeded {
+					resCh <- Result{
+						Value: "Stopped by Worker (MaxWorkTime exceeded\n",
+						Error: nil,
+					}
+					return
+				}
+				if mjCtx.Err() == context.DeadlineExceeded {
+					resCh <- Result{
+						Value: fmt.Sprintf("Finish monitoring job \"%v\"...\n", mj.Name),
+						Error: nil,
+					}
+					return
+				}
+				resCh <- Result{
+					Value: fmt.Sprintf("Stopping monitoring job \"%v\"...\n", mj.Name),
+					Error: nil,
+				}
+				return
+			case t := <-ticker.C:
 
-			fmt.Printf("Stopping monitoring job \"%v\"...\n", mj.Name)
-			return nil
-		case t := <-ticker.C:
-			if res, err := mj.Callback(mjCtx); err != nil {
-				fmt.Printf("[MONITORING][%v][ERROR] %v\n", t.Format(time.RFC3339), err)
-			} else {
-				fmt.Printf("[MONITORING][%v] %s\n", t.Format(time.RFC3339), res.String())
+				//ACTION
+				if res, err := mj.Callback(mjCtx); err != nil {
+					resCh <- Result{
+						Value: fmt.Sprintf("[MONITORING][%v][ERROR] %v\n", t.Format(time.RFC3339), err),
+						Error: nil,
+					}
+				} else {
+					resCh <- Result{
+						Value: fmt.Sprintf("[MONITORING][%v] %s\n", t.Format(time.RFC3339), res.String()),
+						Error: nil,
+					}
+				}
 			}
 		}
-	}
+	}()
+
+	return resCh
 }

@@ -11,40 +11,53 @@ type WaitingJob struct {
 	WorkTime     time.Duration
 }
 
-func (wj *WaitingJob) Do(ctx context.Context) error {
-	// context PER CALL
-	jobCtx, cancel := context.WithTimeout(ctx, wj.WorkTime)
-	defer cancel()
+func (wj *WaitingJob) Do(ctx context.Context) <-chan Result {
+	resCh := make(chan Result)
 
-	if v, ok := ctx.(Job); ok && v != nil {
+	go func() {
+		defer close(resCh)
+		// context PER CALL
+		jobCtx, cancel := context.WithTimeout(ctx, wj.WorkTime)
+		defer cancel()
 
-	}
+		ticker := time.NewTicker(wj.WorkInterval)
+		defer ticker.Stop()
 
-	ticker := time.NewTicker(wj.WorkInterval)
-	defer ticker.Stop()
+		startTime := time.Now()
 
-	startTime := time.Now()
+		for {
+			select {
+			case <-jobCtx.Done():
+				if ctx.Err() == context.DeadlineExceeded {
+					resCh <- Result{
+						Value: "Stopped by Worker (MaxWorkTime exceeded)\n",
+						Error: nil,
+					}
+					return
+				}
+				if jobCtx.Err() == context.DeadlineExceeded {
+					resCh <- Result{
+						Value: "Fuck you! I'm done!\n",
+						Error: nil,
+					}
+					return
+				}
 
-	for {
-		select {
-		case <-jobCtx.Done():
+				resCh <- Result{
+					Value: "Where do you go? Don't leave me!\n",
+					Error: nil,
+				}
+				return
+			case t := <-ticker.C:
+				diff := t.Sub(startTime)
 
-			if ctx.Err() == context.DeadlineExceeded {
-				fmt.Println("Stopped by Worker (MaxWorkTime exceeded)")
-				return nil
+				resCh <- Result{
+					Value: fmt.Sprintf("I'm still waiting for you... It's been %veconds!\n", diff),
+					Error: nil,
+				}
 			}
-
-			if jobCtx.Err() == context.DeadlineExceeded {
-				fmt.Println("Fuck you! I'm done!")
-				return nil
-			}
-
-			fmt.Println("Where do you go? Don't leave me!")
-			return nil
-		case t := <-ticker.C:
-			diff := t.Sub(startTime)
-			fmt.Printf("I'm still waiting for you... It's been %veconds!\n", diff)
 		}
-	}
+	}()
 
+	return resCh
 }

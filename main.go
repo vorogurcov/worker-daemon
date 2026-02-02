@@ -25,31 +25,31 @@ func main() {
 	waitingJob := job.WaitingJob{WorkInterval: time.Second, WorkTime: 5 * time.Second}
 	monitoringDiskCJob := job.MonitoringJob{
 		Name:         "monitoringDiskCJob",
-		WorkTime:     time.Hour,
+		WorkTime:     30 * time.Second,
 		WorkInterval: time.Second,
 		Callback:     monitoring.NewDiskCallback("C:", metrics),
 	}
 	monitoringDiskDJob := job.MonitoringJob{
 		Name:         "monitoringDiskDJob",
-		WorkTime:     5 * time.Second,
+		WorkTime:     30 * time.Second,
 		WorkInterval: time.Second,
 		Callback:     monitoring.NewDiskCallback("D:", metrics),
 	}
 	monitoringCPUJob := job.MonitoringJob{
 		Name:         "monitoringCPUJob",
-		WorkTime:     10 * time.Second,
+		WorkTime:     30 * time.Second,
 		WorkInterval: 500 * time.Millisecond,
 		Callback:     monitoring.NewCPUCallback(metrics),
 	}
 	monitoringMemJob := job.MonitoringJob{
 		Name:         "monitoringMemJob",
-		WorkTime:     time.Hour,
+		WorkTime:     30 * time.Second,
 		WorkInterval: time.Second,
 		Callback:     monitoring.NewMemCallback(metrics),
 	}
 	monitoringNetJob := job.MonitoringJob{
 		Name:         "monitoringNetJob",
-		WorkTime:     time.Hour,
+		WorkTime:     30 * time.Second,
 		WorkInterval: time.Second,
 		Callback:     monitoring.NewNetCallback(metrics),
 	}
@@ -67,7 +67,7 @@ func main() {
 		}
 	}()
 
-	errChan := basic.ExecuteJobs(progCtx)
+	resCh := basic.ExecuteJobs(progCtx)
 
 	for _, j := range jobs {
 		basic.AppendToJobs(j)
@@ -81,15 +81,17 @@ func main() {
 
 	for {
 		select {
-		case err, ok := <-errChan:
+		case res, ok := <-resCh:
 			if !ok {
-				fmt.Println("finished all jobs!")
+				fmt.Print("finished all jobs!")
 				return
 			}
-			if err != nil {
-				fmt.Println(err)
+			if res.Error != nil {
+				fmt.Println(res.Error)
 			}
-
+			if res.Value != nil {
+				fmt.Print(res.Value)
+			}
 		}
 	}
 
