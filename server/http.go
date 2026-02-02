@@ -14,29 +14,31 @@ func createJobHandlerFunc(metrics *metrics.Metrics, worker *worker.BasicWorker) 
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			w.WriteHeader(405)
-			w.Write([]byte("method not allowed"))
-			return
-		}
-		var jobDto CreateJobDto
-		if err := json.NewDecoder(r.Body).Decode(&jobDto); err != nil {
-			w.WriteHeader(500)
-			w.Write([]byte("incorrect json"))
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
-		if jobDto.Type != "WaitingJob" && jobDto.Type != "MonitoringCPUJob" {
-			w.WriteHeader(500)
-			w.Write([]byte("incorrect job type, types supported are 'MonitoringCPUJob' and 'WaitingJob'"))
+		var jobDto CreateJobDto
+		if err := json.NewDecoder(r.Body).Decode(&jobDto); err != nil {
+			http.Error(w, "Incorrect JSON", http.StatusBadRequest)
+			return
+		}
+
+		switch jobDto.Type {
+		case "WaitingJob", "MonitoringCPUJob":
+			// OK
+		default:
+			http.Error(w, "Unsupported job type", http.StatusBadRequest)
 			return
 		}
 
 		if err := CreateJob(metrics, worker, jobDto); err != nil {
-			w.WriteHeader(500)
+			w.WriteHeader(400)
 			w.Write([]byte(err.Error()))
 			return
 		}
 
+		w.WriteHeader(http.StatusAccepted)
 		w.Write([]byte("OK"))
 	}
 
