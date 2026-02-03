@@ -6,6 +6,7 @@ import (
 	"log"
 	"main/job/metrics"
 	"main/worker"
+	"main/worker/state"
 	"net"
 	"net/http"
 	"time"
@@ -19,6 +20,7 @@ func Serve(
 	port uint16,
 	reg *prometheus.Registry,
 	metrics *metrics.Metrics,
+	b *state.BasicStateSaver,
 	worker *worker.BasicWorker,
 ) error {
 
@@ -32,7 +34,7 @@ func Serve(
 	}
 	defer cancel()
 
-	mux := SetAndGetMux(reg, metrics, worker)
+	mux := SetAndGetMux(reg, metrics, b, worker)
 
 	srv := &http.Server{
 		Addr:    fmt.Sprintf("localhost:%d", port),

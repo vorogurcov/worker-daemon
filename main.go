@@ -8,6 +8,7 @@ import (
 	"main/job/monitoring"
 	"main/server"
 	"main/worker"
+	"main/worker/state"
 	"os/signal"
 	"sync"
 	"syscall"
@@ -23,6 +24,8 @@ func main() {
 	reg := prometheus.NewRegistry()
 	metrics := metrics2.NewMetrics(reg)
 
+	b := state.BasicStateSaver{SchemaVer: 1}
+
 	maxWorkTime := time.Duration(0)
 
 	waitingJob := job.WaitingJob{WorkInterval: time.Second, WorkTime: 5 * time.Second}
@@ -30,43 +33,43 @@ func main() {
 		Name:         "monitoringDiskCJob",
 		WorkTime:     30 * time.Second,
 		WorkInterval: time.Second,
-		Callback:     monitoring.NewDiskCallback("C:", metrics),
+		Callback:     monitoring.NewDiskCallback(&b, "C:", metrics),
 	}
 	monitoringDiskDJob := job.MonitoringJob{
 		Name:         "monitoringDiskDJob",
 		WorkTime:     30 * time.Second,
 		WorkInterval: time.Second,
-		Callback:     monitoring.NewDiskCallback("D:", metrics),
+		Callback:     monitoring.NewDiskCallback(&b, "D:", metrics),
 	}
 	monitoringCPUJob := job.MonitoringJob{
 		Name:         "monitoringCPUJob",
 		WorkTime:     30 * time.Second,
 		WorkInterval: 500 * time.Millisecond,
-		Callback:     monitoring.NewCPUCallback(metrics),
+		Callback:     monitoring.NewCPUCallback(&b, metrics),
 	}
 	monitoringMemJob := job.MonitoringJob{
 		Name:         "monitoringMemJob",
 		WorkTime:     30 * time.Second,
 		WorkInterval: time.Second,
-		Callback:     monitoring.NewMemCallback(metrics),
+		Callback:     monitoring.NewMemCallback(&b, metrics),
 	}
 	monitoringNetJob := job.MonitoringJob{
 		Name:         "monitoringNetJob",
 		WorkTime:     30 * time.Second,
 		WorkInterval: time.Second,
-		Callback:     monitoring.NewNetCallback(metrics),
+		Callback:     monitoring.NewNetCallback(&b, metrics),
 	}
 
 	jobs := []job.Job{&waitingJob, &monitoringDiskCJob, &monitoringDiskDJob,
 		&monitoringCPUJob, &monitoringMemJob, &monitoringNetJob}
 
-	basic := worker.NewWorker(maxWorkTime, 100)
+	basic := worker.NewWorker(&b, maxWorkTime, 100)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		err := server.Serve(progCtx, maxWorkTime, 8080, reg, metrics, basic)
+		err := server.Serve(progCtx, maxWorkTime, 8080, reg, metrics, &b, basic)
 		if err != nil {
 			fmt.Println(err)
 		}
@@ -99,5 +102,4 @@ func main() {
 	}()
 
 	wg.Wait()
-
 }

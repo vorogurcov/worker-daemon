@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"main/job/metrics"
 	"main/worker"
+	"main/worker/state"
 	"net/http"
 	"time"
 
@@ -11,7 +12,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-func createJobHandlerFunc(metrics *metrics.Metrics, worker *worker.BasicWorker) http.HandlerFunc {
+func createJobHandlerFunc(metrics *metrics.Metrics, b *state.BasicStateSaver, worker *worker.BasicWorker) http.HandlerFunc {
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -35,7 +36,7 @@ func createJobHandlerFunc(metrics *metrics.Metrics, worker *worker.BasicWorker) 
 
 		time.Sleep(10 * time.Second)
 
-		if err := CreateJob(r.Context(), metrics, worker, jobDto); err != nil {
+		if err := CreateJob(r.Context(), b, metrics, worker, jobDto); err != nil {
 			w.WriteHeader(400)
 			w.Write([]byte(err.Error()))
 			return
@@ -47,11 +48,11 @@ func createJobHandlerFunc(metrics *metrics.Metrics, worker *worker.BasicWorker) 
 
 }
 
-func SetAndGetMux(reg *prometheus.Registry, metrics *metrics.Metrics, worker *worker.BasicWorker) *http.ServeMux {
+func SetAndGetMux(reg *prometheus.Registry, metrics *metrics.Metrics, b *state.BasicStateSaver, worker *worker.BasicWorker) *http.ServeMux {
 	mux := http.NewServeMux()
 
 	mux.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{Registry: reg}))
-	mux.HandleFunc("/create", createJobHandlerFunc(metrics, worker))
+	mux.HandleFunc("/create", createJobHandlerFunc(metrics, b, worker))
 
 	return mux
 }

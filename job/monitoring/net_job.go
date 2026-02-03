@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"main/job"
 	metrics2 "main/job/metrics"
+	"main/worker/state"
+	"time"
 
 	"github.com/shirou/gopsutil/net"
 )
@@ -20,7 +22,7 @@ func (r NetResult) String() string {
 		r.BytesSent/1024/1024, r.BytesRecv/1024/1024)
 }
 
-func NewNetCallback(metrics *metrics2.Metrics) job.MonitoringCallback {
+func NewNetCallback(basicStateSaver *state.BasicStateSaver, metrics *metrics2.Metrics) job.MonitoringCallback {
 	return func(ctx context.Context) (job.MonitoringResult, error) {
 		counters, err := net.IOCountersWithContext(ctx, false)
 		if err != nil {
@@ -30,6 +32,7 @@ func NewNetCallback(metrics *metrics2.Metrics) job.MonitoringCallback {
 			return nil, fmt.Errorf("no net counters")
 		}
 		metrics.NetCounter.Set(float64(counters[0].BytesSent / 1024 / 1024))
+		basicStateSaver.SetNetCountersMetric(time.Now())
 
 		return NetResult{
 			BytesSent: counters[0].BytesSent,

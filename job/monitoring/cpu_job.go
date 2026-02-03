@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"main/job"
 	metrics2 "main/job/metrics"
+	"main/worker/state"
+	"time"
 
 	cpu2 "github.com/shirou/gopsutil/cpu"
 )
@@ -18,7 +20,7 @@ func (r CPUResult) String() string {
 	return fmt.Sprintf("cpu used: %.2f%%", r.Percent)
 }
 
-func NewCPUCallback(metrics *metrics2.Metrics) job.MonitoringCallback {
+func NewCPUCallback(basicStateSaver *state.BasicStateSaver, metrics *metrics2.Metrics) job.MonitoringCallback {
 	return func(ctx context.Context) (job.MonitoringResult, error) {
 		percentSlice, err := cpu2.PercentWithContext(ctx, 0, false)
 		if err != nil {
@@ -28,6 +30,7 @@ func NewCPUCallback(metrics *metrics2.Metrics) job.MonitoringCallback {
 			return nil, fmt.Errorf("no cpu percent returned")
 		}
 		metrics.CpuUsagePercent.Set(percentSlice[0])
+		basicStateSaver.SetCpuMetric(time.Now())
 
 		return CPUResult{Percent: percentSlice[0]}, nil
 	}
