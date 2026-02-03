@@ -9,6 +9,7 @@ import (
 	"main/server"
 	"main/worker"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -61,40 +62,42 @@ func main() {
 
 	basic := worker.NewWorker(maxWorkTime, 100)
 
+	var wg sync.WaitGroup
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		err := server.Serve(progCtx, maxWorkTime, 8080, reg, metrics, basic)
 		if err != nil {
 			fmt.Println(err)
-
 		}
 	}()
 
 	resCh := basic.ExecuteJobs(progCtx)
 
 	for _, j := range jobs {
-		basic.AppendToJobs(j)
+		basic.AppendToJobs(progCtx, j)
 	}
 
 	go func() {
 		time.Sleep(8 * time.Second)
 		waitJob := job.WaitingJob{WorkInterval: time.Second, WorkTime: 5 * time.Second}
-		basic.AppendToJobs(&waitJob)
+		basic.AppendToJobs(progCtx, &waitJob)
 	}()
 
-	for {
-		select {
-		case res, ok := <-resCh:
-			if !ok {
-				fmt.Print("finished all jobs!\n")
-				return
-			}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for res := range resCh {
 			if res.Error != nil {
-				fmt.Print(res.Error)
+				fmt.Printf("%v", res.Error)
 			}
 			if res.Value != nil {
-				fmt.Print(res.Value)
+				fmt.Printf("%v", res.Value)
 			}
 		}
-	}
+		fmt.Println("finished all jobs!")
+	}()
+
+	wg.Wait()
 
 }

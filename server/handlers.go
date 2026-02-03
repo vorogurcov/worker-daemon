@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"errors"
 	"main/job"
 	"main/job/metrics"
@@ -8,7 +9,7 @@ import (
 	"main/worker"
 )
 
-func CreateJob(metrics *metrics.Metrics, w *worker.BasicWorker, createJobDto CreateJobDto) error {
+func CreateJob(ctx context.Context, metrics *metrics.Metrics, w *worker.BasicWorker, createJobDto CreateJobDto) error {
 	var j job.Job
 
 	if createJobDto.Type == "WaitingJob" {
@@ -24,6 +25,6 @@ func CreateJob(metrics *metrics.Metrics, w *worker.BasicWorker, createJobDto Cre
 		return errors.New("type is not supported")
 	}
 
-	w.AppendToJobs(j)
+	w.AppendToJobs(ctx, j)
 	return nil
 }

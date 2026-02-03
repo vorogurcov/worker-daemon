@@ -13,7 +13,15 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-func Serve(ctx context.Context, maxWorkTime time.Duration, port uint16, reg *prometheus.Registry, metrics *metrics.Metrics, worker *worker.BasicWorker) error {
+func Serve(
+	ctx context.Context,
+	maxWorkTime time.Duration,
+	port uint16,
+	reg *prometheus.Registry,
+	metrics *metrics.Metrics,
+	worker *worker.BasicWorker,
+) error {
+
 	var srvCtx context.Context
 	var cancel context.CancelFunc
 
@@ -22,15 +30,14 @@ func Serve(ctx context.Context, maxWorkTime time.Duration, port uint16, reg *pro
 	} else {
 		srvCtx, cancel = context.WithCancel(ctx)
 	}
-
 	defer cancel()
 
 	mux := SetAndGetMux(reg, metrics, worker)
-	addr := fmt.Sprintf("localhost:%d", port)
+
 	srv := &http.Server{
-		Addr:    addr,
+		Addr:    fmt.Sprintf("localhost:%d", port),
 		Handler: mux,
-		BaseContext: func(l net.Listener) context.Context {
+		BaseContext: func(net.Listener) context.Context {
 			return srvCtx
 		},
 	}
@@ -38,25 +45,32 @@ func Serve(ctx context.Context, maxWorkTime time.Duration, port uint16, reg *pro
 	errCh := make(chan error, 1)
 
 	go func() {
-		log.Printf("http: starting server on %s", addr)
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			errCh <- err
-		}
-		close(errCh)
+		log.Printf("http: starting on %s", srv.Addr)
+		errCh <- srv.ListenAndServe()
 	}()
 
 	select {
 	case <-srvCtx.Done():
+		log.Println("http: graceful shutdown...")
+
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		log.Printf("http: shutting down server (graceful)...")
+
 		if err := srv.Shutdown(shutdownCtx); err != nil {
 			_ = srv.Close()
-			return fmt.Errorf("server shutdown failed: %w", err)
+			return fmt.Errorf("shutdown failed: %w", err)
 		}
+
+		err := <-errCh
+		if err != nil && err != http.ErrServerClosed {
+			return err
+		}
+
+		log.Println("http: shutdown complete")
 		return nil
+
 	case err := <-errCh:
-		if err != nil {
+		if err != nil && err != http.ErrServerClosed {
 			return err
 		}
 		return nil

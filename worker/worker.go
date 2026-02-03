@@ -28,7 +28,7 @@ func (bw *BasicWorker) ExecuteJobs(ctx context.Context) <-chan job.Result {
 	go func() {
 		var workerCtx context.Context
 		var cancel context.CancelFunc
-		
+
 		if bw.MaxWorkTime > 0 {
 			workerCtx, cancel = context.WithTimeout(ctx, bw.MaxWorkTime)
 		} else {
@@ -60,8 +60,14 @@ func (bw *BasicWorker) ExecuteJobs(ctx context.Context) <-chan job.Result {
 	return resCh
 }
 
-func (bw *BasicWorker) AppendToJobs(job job.Job) {
-	bw.workerJobs <- job
+func (bw *BasicWorker) AppendToJobs(ctx context.Context, job job.Job) {
+	select {
+	case <-ctx.Done():
+		return
+	default:
+		bw.workerJobs <- job
+		return
+	}
 }
 
 func (bw *BasicWorker) Stop() {

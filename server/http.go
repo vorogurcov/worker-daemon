@@ -5,6 +5,7 @@ import (
 	"main/job/metrics"
 	"main/worker"
 	"net/http"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -32,7 +33,9 @@ func createJobHandlerFunc(metrics *metrics.Metrics, worker *worker.BasicWorker) 
 			return
 		}
 
-		if err := CreateJob(metrics, worker, jobDto); err != nil {
+		time.Sleep(10 * time.Second)
+
+		if err := CreateJob(r.Context(), metrics, worker, jobDto); err != nil {
 			w.WriteHeader(400)
 			w.Write([]byte(err.Error()))
 			return
