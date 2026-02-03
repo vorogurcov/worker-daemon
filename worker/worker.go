@@ -91,11 +91,26 @@ func (bw *BasicWorker) Stop() error {
 		return err
 	}
 
-	ts := time.Now().UTC().UnixMilli()
-	finalName := filepath.Join(dir, fmt.Sprintf("save-%d.json", ts))
-	tmpName := finalName + ".tmp"
+	lastPath := filepath.Join(dir, "last-save.json")
 
-	f, err := os.Create(tmpName)
+	if _, err := os.Stat(lastPath); err == nil {
+		oldFile, err := os.Open(lastPath)
+		if err == nil {
+			var prev state.ShutdownState
+			if err := json.NewDecoder(oldFile).Decode(&prev); err == nil {
+				ts := prev.ShutdownTimeUTC.UTC().UnixMilli()
+				historyName := filepath.Join(dir, fmt.Sprintf("save-%d.json", ts))
+				oldFile.Close()
+				_ = os.Rename(lastPath, historyName)
+			} else {
+				oldFile.Close()
+			}
+		}
+	}
+
+	tmpPath := lastPath + ".tmp"
+
+	f, err := os.Create(tmpPath)
 	if err != nil {
 		return err
 	}
@@ -118,7 +133,7 @@ func (bw *BasicWorker) Stop() error {
 		return err
 	}
 
-	if err := os.Rename(tmpName, finalName); err != nil {
+	if err := os.Rename(tmpPath, lastPath); err != nil {
 		return err
 	}
 
