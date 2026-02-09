@@ -53,6 +53,7 @@ func (bw *BasicWorker) ExecuteJobs(ctx context.Context) <-chan job.Result {
 					Error: err,
 				}
 			}
+			close(bw.workerJobs)
 		}()
 
 		for j := range bw.workerJobs {
@@ -82,8 +83,6 @@ func (bw *BasicWorker) AppendToJobs(ctx context.Context, job job.Job) {
 	}
 }
 func (bw *BasicWorker) Stop() error {
-	defer close(bw.workerJobs)
-
 	shState := bw.basicStateSaver.GetShutdownState(true)
 
 	const dir = "saves"

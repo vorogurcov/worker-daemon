@@ -6,7 +6,6 @@ import (
 	"main/worker"
 	"main/worker/state"
 	"net/http"
-	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -33,8 +32,6 @@ func createJobHandlerFunc(metrics *metrics.Metrics, b *state.BasicStateSaver, wo
 			http.Error(w, "Unsupported job type", http.StatusBadRequest)
 			return
 		}
-
-		time.Sleep(10 * time.Second)
 
 		if err := CreateJob(r.Context(), b, metrics, worker, jobDto); err != nil {
 			w.WriteHeader(400)

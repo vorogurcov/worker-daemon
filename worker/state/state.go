@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 )
 
 type BasicStateSaver struct {
+	mu             sync.Mutex
 	SchemaVer      int
 	cpuTime        time.Time
 	memTime        time.Time
@@ -33,12 +35,12 @@ func (b *BasicStateSaver) GetLastShutdownState() (ShutdownState, error) {
 	}
 
 	return state, nil
-
 }
 
 func (b *BasicStateSaver) GetShutdownState(isShutdownClean bool) ShutdownState {
 	prevState, err := b.GetLastShutdownState()
-
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	if err == nil {
 		if b.cpuTime.IsZero() {
 			b.cpuTime = prevState.LastCollect.Cpu
@@ -72,22 +74,31 @@ func (b *BasicStateSaver) GetShutdownState(isShutdownClean bool) ShutdownState {
 }
 
 func (b *BasicStateSaver) SetMemMetric(time time.Time) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	b.memTime = time
 }
 
 func (b *BasicStateSaver) SetDiskCMetric(time time.Time) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	b.diskCTime = time
 }
 
 func (b *BasicStateSaver) SetDiskDMetric(time time.Time) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	b.diskDTime = time
-
 }
 
 func (b *BasicStateSaver) SetNetCountersMetric(time time.Time) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	b.netCounterTime = time
 }
 
 func (b *BasicStateSaver) SetCpuMetric(time time.Time) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	b.cpuTime = time
 }

@@ -8,10 +8,9 @@ import (
 )
 
 type Worker interface {
-	NewWorker(stateSaver *state.BasicStateSaver, maxTime time.Duration) *Worker
 	ExecuteJobs(ctx context.Context) <-chan job.Result
-	AppendToJobs(job job.Job)
-	Stop()
+	AppendToJobs(ctx context.Context, job job.Job)
+	Stop() error
 }
 
 type StateSaver interface {
